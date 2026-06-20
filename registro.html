@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Check-in - Desafio Reta Final</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <div class="container">
+    <header class="header">
+      <div class="header-inner">
+        <span class="logo">MKT <span>DOS SONHOS</span></span>
+      </div>
+    </header>
+    <a href="index.html" class="back-link">← Voltar</a>
+    <div id="app-content">
+      <div class="loading">Carregando...</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+const MEMBERS = ['Geovanna', 'Augusta', 'Yan'];
+const params = new URLSearchParams(location.search);
+const nome = params.get('nome');
+const idx = MEMBERS.indexOf(nome);
+
+if (!nome || idx === -1) { location.href = 'index.html'; }
+
+const today = new Date().toISOString().split('T')[0];
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function calcScore(e) {
+  let s = (e.reels||0)*10 + (e.sprints||0)*1 + (e.carrosseis||0)*6;
+  if (e.deadline_status === 'all') s += 15;
+  else if (e.deadline_status === 'partial') s -= 10;
+  else if (e.deadline_status === 'none') s -= 20;
+  if (e.new_idea) s += 15;
+  if (e.solved_problem) s += 20;
+  if (e.helped_team && e.helped_team.trim()) s += 15;
+  return s;
+}
+
+async function init() {
+  const { data } = await client.from('entries').select('id').eq('user_name', nome).eq('date', today).maybeSingle();
+  if (data) {
+    document.getElementById('app-content').innerHTML = `
+      <div class="done-banner">
+        <h3>Check-in ja realizado</h3>
+        <p>Voce ja registrou hoje. Volte amanha.</p>
+        <br><a href="index.html" class="btn btn-ghost" style="display:inline-flex;width:auto;margin-top:12px">Voltar ao inicio</a>
+      </div>`;
+    return;
+  }
+  renderForm();
+}
+
+function yn(name, label) {
+  return `<div class="field">
+    <label>${label}</label>
+    <div class="yn-row">
+      <button type="button" class="yn-btn" onclick="setYN('${name}',true,this)">Sim</button>
+      <button type="button" class="yn-btn" onclick="setYN('${name}',false,this)">Nao</button>
+    </div>
+    <input type="hidden" name="${name}" value="">
+  </div>`;
+}
+
+function radio(name, label, options) {
+  return `<div class="field">
+    <label>${label}</label>
+    <div class="options-list">${options.map(o => `
+      <label class="option-item" onclick="selectOption(this,'${name}','${o.value}')">
+        <span class="option-dot"></span>
+        <span class="option-text">${o.label}</span>
+        <input type="radio" name="${name}" value="${o.value}" style="display:none">
+      </label>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderForm() {
+  document.getElementById('app-content').innerHTML = `
+    <div class="form-card">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+        <div class="avatar avatar-${idx}" style="width:48px;height:48px;font-size:1.1rem;margin:0">${nome[0]}</div>
+        <div>
+          <div style="font-weight:800;font-size:1.1rem">${nome}</div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-top:2px">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div>
+        </div>
+      </div>
+
+      <div id="msg-area"></div>
+
+      <form id="checkin-form" onsubmit="handleSubmit(event)">
+
+        <div class="form-section">
+          <div class="section-label">Producao</div>
+          <div class="field"><label>Quantos Reels voce produziu hoje?</label><input type="number" name="reels" min="0" max="99" value="0"></div>
+          ${yn('did_sprints','Voce fez sprints de trafego?')}
+          <div id="sprints-field" style="display:none" class="conditional-field">
+            <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">Quantos sprints?</label>
+            <input type="number" name="sprints" min="0" max="99" value="0">
+          </div>
+          <div class="field"><label>Quantos Carrosseis voce produziu hoje?</label><input type="number" name="carrosseis" min="0" max="99" value="0"></div>
+          <div class="field"><label>O que voce fez hoje?</label><textarea name="what_did" required placeholder="Descreva suas principais atividades..."></textarea></div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-label">Execucao</div>
+          ${radio('deadline_status','Entregou tudo dentro do prazo?',[
+            {value:'all',label:'Sim'},
+            {value:'partial',label:'Algumas coisas sim, outras nao'},
+            {value:'none',label:'Nao'}
+          ])}
+          ${yn('extra_demand','Teve alguma demanda extra que voce resolveu hoje?')}
+          <div id="extra-demand-field" style="display:none" class="conditional-field">
+            <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">Qual?</label>
+            <textarea name="extra_demand_desc" style="min-height:60px" placeholder="Descreva a demanda..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-label">Proatividade</div>
+          ${yn('new_idea','Voce trouxe alguma ideia nova hoje?')}
+          <div id="new-idea-field" style="display:none" class="conditional-field">
+            <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">Qual?</label>
+            <textarea name="new_idea_desc" style="min-height:60px" placeholder="Descreva a ideia..."></textarea>
+          </div>
+          <div class="field"><label>Voce ajudou alguem da equipe? Quem e com o que?</label><textarea name="helped_team" style="min-height:60px" placeholder="Deixe em branco se nao ajudou..."></textarea></div>
+          ${yn('solved_problem','Houve algum problema que voce identificou e resolveu sozinho?')}
+          <div id="solved-problem-field" style="display:none" class="conditional-field">
+            <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">Qual?</label>
+            <textarea name="solved_problem_desc" style="min-height:60px" placeholder="Descreva o problema e como resolveu..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-label">Comprometimento</div>
+          <div class="field">
+            <label>De 0 a 10, quanto voce acha que se esforcou hoje?</label>
+            <div style="text-align:center;font-size:2rem;font-weight:800;color:var(--gold)" id="effort-val">5</div>
+            <input type="range" name="effort_score" min="0" max="10" value="5" oninput="document.getElementById('effort-val').textContent=this.value">
+            <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-top:4px"><span>0 — Nenhum esfoco</span><span>10 — Maximo</span></div>
+          </div>
+          <div class="field"><label>Se pudesse refazer algo hoje, o que seria?</label><textarea name="redo_what" required placeholder="Seja honesto..."></textarea></div>
+          ${radio('gave_max','Agora no final do dia, voce sente que deu o seu maximo?',[
+            {value:'yes',label:'Sim'},
+            {value:'could_more',label:'Sinto que poderia ter dado mais...'}
+          ])}
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submit-btn">Enviar check-in</button>
+      </form>
+    </div>`;
+}
+
+window.setYN = function(name, val, btn) {
+  const hidden = document.querySelector(`input[name="${name}"]`);
+  hidden.value = val ? 'true' : 'false';
+  const row = btn.closest('.yn-row');
+  row.querySelectorAll('.yn-btn').forEach(b => b.classList.remove('active-yes','active-no'));
+  btn.classList.add(val ? 'active-yes' : 'active-no');
+  const fieldMap = {
+    did_sprints: 'sprints-field',
+    extra_demand: 'extra-demand-field',
+    new_idea: 'new-idea-field',
+    solved_problem: 'solved-problem-field'
+  };
+  if (fieldMap[name]) {
+    document.getElementById(fieldMap[name]).style.display = val ? 'block' : 'none';
+  }
+};
+
+window.selectOption = function(el, name, value) {
+  el.closest('.options-list').querySelectorAll('.option-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  el.querySelector('input[type=radio]').value = value;
+  el.querySelector('input[type=radio]').checked = true;
+};
+
+window.handleSubmit = async function(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const get = (k) => fd.get(k) || '';
+
+  if (!get('deadline_status')) { showMsg('Responda se entregou tudo no prazo.','error'); return; }
+  if (!get('gave_max')) { showMsg('Responda se deu o seu maximo hoje.','error'); return; }
+  if (get('did_sprints') === '') { showMsg('Responda se fez sprints de trafego.','error'); return; }
+  if (get('extra_demand') === '') { showMsg('Responda sobre demanda extra.','error'); return; }
+  if (get('new_idea') === '') { showMsg('Responda sobre ideia nova.','error'); return; }
+  if (get('solved_problem') === '') { showMsg('Responda sobre problema resolvido.','error'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  const entry = {
+    user_name: nome,
+    date: today,
+    reels: parseInt(get('reels'))||0,
+    sprints: get('did_sprints')==='true' ? (parseInt(get('sprints'))||0) : 0,
+    carrosseis: parseInt(get('carrosseis'))||0,
+    what_did: get('what_did').trim(),
+    deadline_status: get('deadline_status'),
+    extra_demand: get('extra_demand')==='true',
+    extra_demand_desc: get('extra_demand')==='true' ? get('extra_demand_desc').trim() : '',
+    new_idea: get('new_idea')==='true',
+    new_idea_desc: get('new_idea')==='true' ? get('new_idea_desc').trim() : '',
+    helped_team: get('helped_team').trim(),
+    solved_problem: get('solved_problem')==='true',
+    solved_problem_desc: get('solved_problem')==='true' ? get('solved_problem_desc').trim() : '',
+    effort_score: parseInt(get('effort_score'))||5,
+    redo_what: get('redo_what').trim(),
+    gave_max: get('gave_max'),
+  };
+  entry.score = calcScore(entry);
+
+  const { error } = await client.from('entries').insert(entry);
+  if (error) {
+    console.error(error);
+    showMsg('Erro ao salvar: ' + error.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Enviar check-in';
+    return;
+  }
+  showMsg('Check-in registrado com sucesso!', 'success');
+  setTimeout(() => location.href='index.html', 2000);
+};
+
+function showMsg(text, type) {
+  document.getElementById('msg-area').innerHTML = `<div class="alert alert-${type}">${text}</div>`;
+}
+
+init();
+</script>
+</body>
+</html>

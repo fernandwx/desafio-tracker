@@ -1,0 +1,3 @@
+const SUPABASE_URL = 'https://qhllxjjryutomhdvkgjf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFobGx4ampyeXV0b21oZHZrZ2pmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5MjQyMzAsImV4cCI6MjA5NzUwMDIzMH0.F-t_766NKZ_3EtkA5NOQnHTc498S6y7LCGpqWf-kwik';
+const ADMIN_PASSWORD = 'mktdossonhos';
