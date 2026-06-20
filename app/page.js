@@ -2,39 +2,36 @@
 import Link from 'next/link';
 import { MEMBERS } from '../lib/supabase';
 
-const EMOJIS = ['🌟', '🔥', '⚡'];
-const AVATARS = ['G', 'A', 'Y'];
-
 export default function Home() {
   return (
     <div className="page">
       <div className="container">
         <header className="header">
           <div className="header-inner">
-            <span className="logo">🔥 Desafio Reta Final</span>
+            <span className="logo">MKT <span>DOS SONHOS</span></span>
             <nav className="nav">
-              <Link href="/ranking">Ranking</Link>
+              <Link href="/admin">Admin</Link>
             </nav>
           </div>
         </header>
 
         <div className="hero">
-          <h1>Quem é você hoje?</h1>
+          <h1>Check-in <span>diário</span></h1>
           <p>Selecione seu nome para registrar o dia</p>
         </div>
 
         <div className="members-grid">
           {MEMBERS.map((name, i) => (
             <Link key={name} href={`/registro?nome=${name}`} className="member-card">
-              <div className={`avatar avatar-${i}`}>{AVATARS[i]}</div>
+              <div className={`avatar avatar-${i}`}>{name[0]}</div>
               <h3>{name}</h3>
-              <span>Registrar dia {EMOJIS[i]}</span>
+              <span>Registrar</span>
             </Link>
           ))}
         </div>
 
         <div className="admin-link">
-          <Link href="/admin">acesso admin</Link>
+          <Link href="/admin">acesso restrito</Link>
         </div>
       </div>
     </div>
